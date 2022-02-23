@@ -54,6 +54,7 @@ class Provider(Enum):
         WYSCOUT:
         KLOPPY:
         DATAFACTORY:
+        INSTAT:
     """
 
     METRICA = "metrica"
@@ -66,6 +67,7 @@ class Provider(Enum):
     WYSCOUT = "wyscout"
     KLOPPY = "kloppy"
     DATAFACTORY = "datafactory"
+    INSTAT = "instat"
     OTHER = "other"
 
     def __str__(self):
@@ -596,6 +598,26 @@ class DatafactoryCoordinateSystem(CoordinateSystem):
             y_dim=Dimension(-1, 1),
         )
 
+@dataclass
+class InstatCoordinateSystem(CoordinateSystem):
+    @property
+    def provider(self) -> Provider:
+        return Provider.INSTAT
+
+    @property
+    def origin(self) -> Origin:
+        return Origin.BOTTOM_LEFT 
+
+    @property
+    def vertical_orientation(self) -> VerticalOrientation:
+        return VerticalOrientation.BOTTOM_TO_TOP
+
+    @property
+    def pitch_dimensions(self) -> PitchDimensions:
+        return PitchDimensions(
+            x_dim=Dimension(-52,5, 52,5),
+            y_dim=Dimension(0, 68),
+        )
 
 def build_coordinate_system(provider: Provider, **kwargs):
 
@@ -628,6 +650,10 @@ def build_coordinate_system(provider: Provider, **kwargs):
 
     if provider == Provider.SECONDSPECTRUM:
         return SecondSpectrumCoordinateSystem(normalized=False, **kwargs)
+    
+    if provider == Provider.INSTAT:
+        return InstatCoordinateSystem(normalized=False, **kwargs)
+
 
 
 class DatasetFlag(Flag):
