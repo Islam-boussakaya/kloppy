@@ -176,7 +176,7 @@ class InstatDeserializer(EventDataDeserializer[InStatInputs]):
         with performance_logging("parse data", logger=logger):
             home_team_root = lineup_root.first_team
             away_team_root = lineup_root.second_team
-        
+
             home_team , home_team_id= _parse_team(lineup_root,home_team_root,"first_team")
             away_team , away_team_id = _parse_team(lineup_root,away_team_root,"second_team")
     
@@ -184,15 +184,15 @@ class InstatDeserializer(EventDataDeserializer[InStatInputs]):
             score = Score(home=home_score, away=away_score)
             teams = [home_team, away_team]
             row_elm = events_root.find("data")
-    
-    
+
+
             periods = [
-                Period(
+                    Period(
                     id=1,
                     start_timestamp=None,
                     end_timestamp=None,
                 ),
-                Period(
+                    Period(
                     id=2,
                     start_timestamp=None,
                     end_timestamp=None,
@@ -200,7 +200,7 @@ class InstatDeserializer(EventDataDeserializer[InStatInputs]):
             ]
             possession_team = None
             events = []
-           
+
             for row_elm in events_root.iterchildren("row"):
                 event_id = row_elm.attrib["id"]
                 action_id = row_elm.attrib["action_id"]
@@ -212,64 +212,50 @@ class InstatDeserializer(EventDataDeserializer[InStatInputs]):
                     
                     elif period.id == period_id and action_id == EVENT_TYPE_2ND_HALF:
                         period.start_timestamp = timestamp
+        
                 if period_id == 1:
                     period = periods[0]
                 elif period_id == 2 :
                     period = periods[1]
-                
+        
                 if 'possession_id' in row_elm.attrib:
                     if row_elm.attrib["team_id"] == home_team.team_id:
                         team = home_team
                     elif row_elm.attrib["team_id"] == away_team.team_id:
                         team = away_team
                     else:
-                        raise DeserializationError(
-                            f"Unknown team_id {row_elm.attrib['team_id']}"
-                       )
+                        raise DeserializationError(f"Unknown team_id {row_elm.attrib['team_id']}")
             
-                    x = float(row_elm.attrib["pos_x"])
-                    y = float(row_elm.attrib["pos_y"])
+                x = float(row_elm.attrib["pos_x"])
+                y = float(row_elm.attrib["pos_y"])
             
-                    player = None
-                    if "player_id" in row_elm.attrib:
-                        player = team.get_player_by_id(
+                player = None
+                if "player_id" in row_elm.attrib:
+                    player = team.get_player_by_id(
                             row_elm.attrib["player_id"]
                         )
-                    
-                    possession_team = team
-                    generic_event_kwargs = dict(
-                        # from DataRecord
-                        period=period,
-                        timestamp=timestamp - period.start_timestamp,
-                        ball_owning_team=possession_team,
-                        ball_state=BallState.ALIVE,
-                        # from Event
-                        event_id=action_id,
-                        team=team,
-                        player=player,
-                        coordinates=Point(x=x, y=y),
-                        raw_event=row_elm,
+
+                possession_team = team
+                generic_event_kwargs = dict(
+                    # from DataRecord
+                    period=period,
+                    timestamp=timestamp - period.start_timestamp,
+                    ball_owning_team=possession_team,
+                    ball_state=BallState.ALIVE,
+                    # from Event
+                    event_id=action_id,
+                    team=team,
+                    player=player,
+                    coordinates=Point(x=x, y=y),
+                    raw_event=row_elm,
                     )
-                if action_id in EVENT_TYPE_CARD:
-                    generic_event_kwargs["ball_state"] = BallState.DEAD
-                    card_event_kwargs = _parse_card(action_id)
-                    event = CardEvent.create(
-                        **card_event_kwargs,
-                        **generic_event_kwargs,)
-                elif action_id == EVENT_TYPE_FOUL_COMMITTED:
+            
+                if action_id == EVENT_TYPE_FOUL_COMMITTED:
                     event = FoulCommittedEvent.create(
-                        result=None,
-                        qualifiers=None,
-                        **generic_event_kwargs,
-                        )
-            
-                elif action_id == EVENT_TYPE_RECOVERY:
-                    event = RecoveryEvent.create(
-                        result=None,
-                        qualifiers=None,
-                        **generic_event_kwargs,
-                        )
-            
+                    result=None,
+                    qualifiers=None,
+                    **generic_event_kwargs,)
+                
                 elif action_id in BALL_OUT_EVENTS:
                     generic_event_kwargs["ball_state"] = BallState.DEAD
                     event = BallOutEvent.create(
@@ -277,17 +263,33 @@ class InstatDeserializer(EventDataDeserializer[InStatInputs]):
                         qualifiers=None,
                         **generic_event_kwargs,
                         )
-        
-                '''else:
+
+                else:
                     event = GenericEvent.create(
                         **generic_event_kwargs,
                         result=None,
                         qualifiers=None,
                         event_name=_get_action_name(action_id),
-                        )'''
+                        )
                 if self.should_include_event(event):
                     events.append(transformer.transform_event(event))
 
+            if action_id in EVENT_TYPE_CARD:
+                    generic_event_kwargs["ball_state"] = BallState.DEAD
+                    card_event_kwargs = _parse_card(action_id)
+                    event = CardEvent.create(
+                        **card_event_kwargs,
+                        **generic_event_kwargs,)
+               
+        
+            elif action_id == EVENT_TYPE_RECOVERY:
+                    event = RecoveryEvent.create(
+                    result=None,
+                    qualifiers=None,
+                    **generic_event_kwargs,
+                        )
+            if self.should_include_event(event):
+                events.append(transformer.transform_event(event))
         metadata = Metadata(
             teams=teams,
             periods=periods,
@@ -296,11 +298,11 @@ class InstatDeserializer(EventDataDeserializer[InStatInputs]):
             frame_rate=None,
             orientation=Orientation.ACTION_EXECUTING_TEAM,
             flags=DatasetFlag.BALL_OWNING_TEAM,
-            provider=Provider.OPTA,
+            provider=Provider.INSTAT,
             coordinate_system=transformer.get_to_coordinate_system(),
         )
 
         return EventDataset(
             metadata=metadata,
             records=events,
-        )
+        )  
