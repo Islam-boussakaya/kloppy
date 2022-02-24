@@ -615,7 +615,7 @@ class InstatCoordinateSystem(CoordinateSystem):
     @property
     def pitch_dimensions(self) -> PitchDimensions:
         return PitchDimensions(
-            x_dim=Dimension(-52,5, 52,5),
+            x_dim=Dimension(-52.5, 52.5),
             y_dim=Dimension(0, 68),
         )
 
