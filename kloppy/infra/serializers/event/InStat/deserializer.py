@@ -284,9 +284,9 @@ class InstatDeserializer(EventDataDeserializer[InStatInputs]):
                         result=None,
                         qualifiers=None,
                         event_name=_get_action_name(action_id),
-                        )
+                        )'''
                 if self.should_include_event(event):
-                    events.append(transformer.transform_event(event))'''
+                    events.append(transformer.transform_event(event))
 
         metadata = Metadata(
             teams=teams,
