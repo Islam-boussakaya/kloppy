@@ -55,11 +55,38 @@ EVENT_QUALIFIER_FIRST_YELLOW_CARD = "3020"
 EVENT_QUALIFIER_SECOND_YELLOW_CARD = "3100"
 EVENT_QUALIFIER_RED_CARD = "3030"
 EVENT_TYPE_PASS = []
-EVENT_TYPE_FOUL_COMITTED = ["3010"]
+EVENT_TYPE_FOUL_COMMITTED = "3010"
 EVENT_TYPE_1ST_HALF = "18010"
 EVENT_TYPE_2ND_HALF = "18020"
+EVENT_TYPE_RECOVERY = "2060"
+EVENT_TYPE_BALL_OUT = "27000"
+EVENT_TYPE_CORNER_AWARDED ="5060"
+BALL_OUT_EVENTS = [EVENT_TYPE_BALL_OUT, EVENT_TYPE_CORNER_AWARDED]
+
 timestamp_match = 160000002
 
+action_type_names = {
+    1011: "Attacking pass accurate",
+    1012: "Attacking pass inaccurate",
+    1021: "Non attacking pass accurate",
+    1022: "Non attacking pass inaccurate",
+    1031: "Accurate key pass",
+    1032: "Inaccurate key pass",
+    1040: "Assist",
+    1050: "Key assist",
+    2010: "challenge",
+    2020: "Air challenge",
+    2030: "Tackle",
+    8010: "Goal",
+   26000: "Cross",
+   26001: "Crosses accurate",
+   26002: "Crosses inaccurate",
+
+}
+
+def _get_action_name(type_id: int) -> list:
+    return action_type_names.get(type_id, "unknown")
+    
 def _parse_team(lineup_root, team_root , team_side
                     )-> Team:
     team_id = team_root.attrib["id"]
@@ -90,7 +117,7 @@ def _parse_team(lineup_root, team_root , team_side
     ]
     return team , team_id
 
-def _parse_score (events_root,home_team_id,away_home_id):
+def _parse_score (events_root,home_team_id,away_team_id):
     home_score = 0
     away_score = 0
     try:
