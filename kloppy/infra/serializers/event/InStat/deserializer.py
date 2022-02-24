@@ -1,4 +1,3 @@
-from kloppy.io import open_as_file, FileLike
 from typing import Tuple, Dict, List, NamedTuple, IO
 import logging
 from datetime import datetime
@@ -86,7 +85,7 @@ action_type_names = {
 
 def _get_action_name(type_id: int) -> list:
     return action_type_names.get(type_id, "unknown")
-    
+
 def _parse_team(lineup_root, team_root , team_side
                     )-> Team:
     team_id = team_root.attrib["id"]
@@ -168,7 +167,7 @@ class InstatDeserializer(EventDataDeserializer[InStatInputs]):
         return Provider.INSTAT
     
     def deserialize(self, inputs: InStatInputs) -> EventDataset:
-        transformer = self.get_transformer(length=100, width=100)
+        transformer = self.get_transformer(length=52.5, width=68)
         
         with performance_logging("load data", logger=logger):
             lineup_root = objectify.fromstring(inputs.lineup_data.read())
@@ -286,6 +285,27 @@ class InstatDeserializer(EventDataDeserializer[InStatInputs]):
                         qualifiers=None,
                         event_name=_get_action_name(action_id),
                         )
+                if self.should_include_event(event):
+                    events.append(transformer.transform_event(event))
+
+        metadata = Metadata(
+            teams=teams,
+            periods=periods,
+            pitch_dimensions=transformer.get_to_coordinate_system().pitch_dimensions,
+            score=score,
+            frame_rate=None,
+            orientation=Orientation.ACTION_EXECUTING_TEAM,
+            flags=DatasetFlag.BALL_OWNING_TEAM,
+            provider=Provider.OPTA,
+            coordinate_system=transformer.get_to_coordinate_system(),
+        )
+
+        return EventDataset(
+            metadata=metadata,
+            records=events,
+        )
+
+
 
         
         

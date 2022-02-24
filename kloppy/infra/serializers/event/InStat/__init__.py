@@ -1,1 +1,1 @@
-
+from .deserializer import InstatDeserializer, InStatInputs
