@@ -278,7 +278,7 @@ class InstatDeserializer(EventDataDeserializer[InStatInputs]):
                         **generic_event_kwargs,
                         )
         
-                else:
+                '''else:
                     event = GenericEvent.create(
                         **generic_event_kwargs,
                         result=None,
@@ -286,7 +286,7 @@ class InstatDeserializer(EventDataDeserializer[InStatInputs]):
                         event_name=_get_action_name(action_id),
                         )
                 if self.should_include_event(event):
-                    events.append(transformer.transform_event(event))
+                    events.append(transformer.transform_event(event))'''
 
         metadata = Metadata(
             teams=teams,
@@ -304,11 +304,3 @@ class InstatDeserializer(EventDataDeserializer[InStatInputs]):
             metadata=metadata,
             records=events,
         )
-
-
-
-        
-        
-    
-            
-        
