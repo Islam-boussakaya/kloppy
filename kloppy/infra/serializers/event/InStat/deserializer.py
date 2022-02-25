@@ -255,6 +255,7 @@ class InstatDeserializer(EventDataDeserializer[InStatInputs]):
                         result=None,
                         qualifiers=None,
                         **generic_event_kwargs,)
+                        events.append(transformer.transform_event(event))
                 
                     elif action_id in BALL_OUT_EVENTS:
                         generic_event_kwargs["ball_state"] = BallState.DEAD
@@ -263,6 +264,7 @@ class InstatDeserializer(EventDataDeserializer[InStatInputs]):
                         qualifiers=None,
                         **generic_event_kwargs,
                         )
+                        events.append(transformer.transform_event(event))
 
                     else:
                         event = GenericEvent.create(
@@ -271,6 +273,7 @@ class InstatDeserializer(EventDataDeserializer[InStatInputs]):
                         qualifiers=None,
                         event_name=_get_action_name(action_id),
                         )
+                        events.append(transformer.transform_event(event))
 
 
                 if action_id in EVENT_TYPE_CARD:
@@ -279,6 +282,7 @@ class InstatDeserializer(EventDataDeserializer[InStatInputs]):
                     event = CardEvent.create(
                         **card_event_kwargs,
                         **generic_event_kwargs,)
+                    events.append(transformer.transform_event(event))
                
         
                 elif action_id == EVENT_TYPE_RECOVERY:
@@ -287,8 +291,9 @@ class InstatDeserializer(EventDataDeserializer[InStatInputs]):
                     qualifiers=None,
                     **generic_event_kwargs,
                         )
+                    events.append(transformer.transform_event(event))
   
-                events.append(transformer.transform_event(event))
+                
         metadata = Metadata(
             teams=teams,
             periods=periods,
