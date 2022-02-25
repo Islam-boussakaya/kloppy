@@ -271,8 +271,7 @@ class InstatDeserializer(EventDataDeserializer[InStatInputs]):
                         qualifiers=None,
                         event_name=_get_action_name(action_id),
                         )
-                    if self.should_include_event(event):
-                        events.append(transformer.transform_event(event))
+
 
                 if action_id in EVENT_TYPE_CARD:
                     generic_event_kwargs["ball_state"] = BallState.DEAD
@@ -288,8 +287,8 @@ class InstatDeserializer(EventDataDeserializer[InStatInputs]):
                     qualifiers=None,
                     **generic_event_kwargs,
                         )
-                if self.should_include_event(event):
-                    events.append(transformer.transform_event(event))
+  
+                events.append(transformer.transform_event(event))
         metadata = Metadata(
             teams=teams,
             periods=periods,
