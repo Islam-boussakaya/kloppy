@@ -226,17 +226,17 @@ class InstatDeserializer(EventDataDeserializer[InStatInputs]):
                     else:
                         raise DeserializationError(f"Unknown team_id {row_elm.attrib['team_id']}")
             
-                x = float(row_elm.attrib["pos_x"])
-                y = float(row_elm.attrib["pos_y"])
+                    x = float(row_elm.attrib["pos_x"])
+                    y = float(row_elm.attrib["pos_y"])
             
-                player = None
-                if "player_id" in row_elm.attrib:
-                    player = team.get_player_by_id(
+                    player = None
+                    if "player_id" in row_elm.attrib:
+                        player = team.get_player_by_id(
                             row_elm.attrib["player_id"]
                         )
 
-                possession_team = team
-                generic_event_kwargs = dict(
+                    possession_team = team
+                    generic_event_kwargs = dict(
                     # from DataRecord
                     period=period,
                     timestamp=timestamp - period.start_timestamp,
@@ -250,31 +250,31 @@ class InstatDeserializer(EventDataDeserializer[InStatInputs]):
                     raw_event=row_elm,
                     )
             
-                if action_id == EVENT_TYPE_FOUL_COMMITTED:
-                    event = FoulCommittedEvent.create(
-                    result=None,
-                    qualifiers=None,
-                    **generic_event_kwargs,)
+                    if action_id == EVENT_TYPE_FOUL_COMMITTED:
+                        event = FoulCommittedEvent.create(
+                        result=None,
+                        qualifiers=None,
+                        **generic_event_kwargs,)
                 
-                elif action_id in BALL_OUT_EVENTS:
-                    generic_event_kwargs["ball_state"] = BallState.DEAD
-                    event = BallOutEvent.create(
+                    elif action_id in BALL_OUT_EVENTS:
+                        generic_event_kwargs["ball_state"] = BallState.DEAD
+                        event = BallOutEvent.create(
                         result=None,
                         qualifiers=None,
                         **generic_event_kwargs,
                         )
 
-                else:
-                    event = GenericEvent.create(
+                    else:
+                        event = GenericEvent.create(
                         **generic_event_kwargs,
                         result=None,
                         qualifiers=None,
                         event_name=_get_action_name(action_id),
                         )
-                if self.should_include_event(event):
-                    events.append(transformer.transform_event(event))
+                    if self.should_include_event(event):
+                        events.append(transformer.transform_event(event))
 
-            if action_id in EVENT_TYPE_CARD:
+                if action_id in EVENT_TYPE_CARD:
                     generic_event_kwargs["ball_state"] = BallState.DEAD
                     card_event_kwargs = _parse_card(action_id)
                     event = CardEvent.create(
@@ -282,14 +282,14 @@ class InstatDeserializer(EventDataDeserializer[InStatInputs]):
                         **generic_event_kwargs,)
                
         
-            elif action_id == EVENT_TYPE_RECOVERY:
+                elif action_id == EVENT_TYPE_RECOVERY:
                     event = RecoveryEvent.create(
                     result=None,
                     qualifiers=None,
                     **generic_event_kwargs,
                         )
-            if self.should_include_event(event):
-                events.append(transformer.transform_event(event))
+                if self.should_include_event(event):
+                    events.append(transformer.transform_event(event))
         metadata = Metadata(
             teams=teams,
             periods=periods,
