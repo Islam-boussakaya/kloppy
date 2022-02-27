@@ -71,6 +71,28 @@ EVENT_TYPE_SHOT = [
     
 ]
 
+EVENT_TYPE_TAKE_ON_TACKLE = "2030"
+EVENT_TYPE_TAKE_ON_SUCC_DRIBBLING = "2051"
+EVENT_TYPE_TAKE_ON_INSUCC_DRIBBLING = "2052"
+EVENT_TYPE_TAKE_ON_LOSSBALL = "2040"
+EVENT_TYPE_TAKE_ON_CHALLENGE = "2010"
+EVENT_TYPE_TAKE_ON_AIR_CHALLENGE = "2020"
+EVENT_TYPE_TAKE_ON_COMPLETE = [
+    EVENT_TYPE_TAKE_ON_TACKLE,
+    EVENT_TYPE_TAKE_ON_SUCC_DRIBBLING,
+    EVENT_TYPE_TAKE_ON_LOSSBALL,
+    EVENT_TYPE_TAKE_ON_CHALLENGE,
+    EVENT_TYPE_TAKE_ON_AIR_CHALLENGE
+]
+EVENT_TYPE_TAKE_ON = [
+    EVENT_TYPE_TAKE_ON_TACKLE,
+    EVENT_TYPE_TAKE_ON_INSUCC_DRIBBLING,
+    EVENT_TYPE_TAKE_ON_SUCC_DRIBBLING,
+    EVENT_TYPE_TAKE_ON_LOSSBALL,
+    EVENT_TYPE_TAKE_ON_CHALLENGE,
+    EVENT_TYPE_TAKE_ON_AIR_CHALLENGE
+]
+
 EVENT_TYPE_CARD = ["3020","3030","3100"]
 EVENT_TYPE_FIRST_YELLOW_CARD = "3020"
 EVENT_TYPE_SECOND_YELLOW_CARD = "3100"
@@ -229,6 +251,12 @@ def _parse_shot(
     qualifiers = []
     return dict(coordinates=coordinates, result=result, qualifiers=qualifiers)
 
+def _parse_take_on(action_id: str) -> Dict:
+    if action_id in EVENT_TYPE_TAKE_ON_COMPLETE:
+        result = TakeOnResult.COMPLETE
+    elif action_id == EVENT_TYPE_TAKE_ON_INSUCC_DRIBBLING:
+        result = TakeOnResult.INCOMPLETE
+    return dict(result=result)
 
 class InstatDeserializer(EventDataDeserializer[InStatInputs]):
     @property
@@ -356,6 +384,14 @@ class InstatDeserializer(EventDataDeserializer[InStatInputs]):
                         kwargs.update(shot_event_kwargs)
                         event = ShotEvent.create(**kwargs)
                         events.append(transformer.transform_event(event))
+                    
+                    elif action_id in EVENT_TYPE_TAKE_ON:
+                        take_on_event_kwargs = _parse_take_on(action_id)
+                        event = TakeOnEvent.create(
+                        qualifiers=None,
+                        **take_on_event_kwargs,
+                        **generic_event_kwargs,
+                        )
 
                     else:
                         event = GenericEvent.create(
