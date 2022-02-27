@@ -49,20 +49,49 @@ from kloppy.utils import performance_logging
 
 logger = logging.getLogger(__name__)
 
+EVENT_TYPE_CROSS = ["26000","26001","26002","26010","26012"]
+EVENT_TYPE_CROSS_COMPLETE = ["26000","26002","26010","26012"]
+EVENT_TYPE_CROSS_INCOMPLETE = ["26001"]
+EVENT_TYPE_ASSIST = ["1040"]
+EVENT_TYPE_ASSISIT_2ND = ["1050","1070"]
+EVENT_TYPE_PASS = ["26000","26001","26002","26010","26012","1040","1050","1070"]
+
+EVENT_TYPE_SHOT_GOAL = "8010"
+EVENT_TYPE_SHOT_OWN_GOAL = "8020"
+EVENT_TYPE_SHOT_BLOCKED = "4050"
+EVENT_TYPE_SHOT_POST = "4030"
+EVENT_TYPE_SHOT_SAVED = "13021"
+EVENT_TYPE_SHOT = [
+    
+    EVENT_TYPE_SHOT_GOAL,
+    EVENT_TYPE_SHOT_OWN_GOAL,
+    EVENT_TYPE_SHOT_BLOCKED,
+    EVENT_TYPE_SHOT_POST,
+    EVENT_TYPE_SHOT_SAVED
+    
+]
+
 EVENT_TYPE_CARD = ["3020","3030","3100"]
-EVENT_QUALIFIER_FIRST_YELLOW_CARD = "3020"
-EVENT_QUALIFIER_SECOND_YELLOW_CARD = "3100"
-EVENT_QUALIFIER_RED_CARD = "3030"
-EVENT_TYPE_PASS = []
+EVENT_TYPE_FIRST_YELLOW_CARD = "3020"
+EVENT_TYPE_SECOND_YELLOW_CARD = "3100"
+EVENT_TYPE_RED_CARD = "3030"
+
 EVENT_TYPE_FOUL_COMMITTED = "3010"
+
 EVENT_TYPE_1ST_HALF = "18010"
 EVENT_TYPE_2ND_HALF = "18020"
+
 EVENT_TYPE_RECOVERY = "2060"
+
 EVENT_TYPE_BALL_OUT = "27000"
 EVENT_TYPE_CORNER_AWARDED ="5060"
 BALL_OUT_EVENTS = [EVENT_TYPE_BALL_OUT, EVENT_TYPE_CORNER_AWARDED]
 
 timestamp_match = 160000002
+
+class InStatInputs(NamedTuple):
+    lineup_data: IO[bytes]
+    events_data: IO[bytes]
 
 action_type_names = {
     1011: "Attacking pass accurate",
@@ -71,15 +100,9 @@ action_type_names = {
     1022: "Non attacking pass inaccurate",
     1031: "Accurate key pass",
     1032: "Inaccurate key pass",
-    1040: "Assist",
-    1050: "Key assist",
     2010: "challenge",
     2020: "Air challenge",
-    2030: "Tackle",
-    8010: "Goal",
-   26000: "Cross",
-   26001: "Crosses accurate",
-   26002: "Crosses inaccurate",
+    2030: "Tackle"
 
 }
 
@@ -117,6 +140,7 @@ def _parse_team(lineup_root, team_root , team_side
     return team , team_id
 
 def _parse_score (events_root,home_team_id,away_team_id):
+    
     home_score = 0
     away_score = 0
     try:
@@ -130,35 +154,78 @@ def _parse_score (events_root,home_team_id,away_team_id):
         pass
     return home_score,away_score
 
-def _parse_card(action_id: str) -> Dict:
-    qualifiers = get_event_card_qualifier(action_id)
-    if action_id == "3030":
+def _parse_card(
+    action_id: str
+) -> Dict:
+
+    if action_id == EVENT_TYPE_RED_CARD:
         card_type = CardType.RED
-    elif action_id == "3100":
+        qualifier = CardQualifier(value=CardType.RED)
+    elif action_id == EVENT_TYPE_SECOND_YELLOW_CARD:
         card_type = CardType.SECOND_YELLOW
-    elif action_id == "3020":
+        qualifier = CardQualifier(value=CardType.SECOND_YELLOW)
+    elif action_id == EVENT_TYPE_FIRST_YELLOW_CARD:
         card_type = CardType.FIRST_YELLOW
+        qualifier = CardQualifier(value=CardType.FIRST_YELLOW)
     else:
         card_type = None
 
-    return dict(result=None, qualifiers=qualifiers, card_type=card_type)
+    return dict(result=None, qualifiers=qualifier, card_type=card_type)
 
-                                          
-def get_event_card_qualifier(action_id: str):
-    qualifiers = []
-    if action_id == EVENT_QUALIFIER_FIRST_YELLOW_CARD:
-         qualifiers.append(CardQualifier(value=CardType.FIRST_YELLOW))
-    elif action_id == EVENT_QUALIFIER_SECOND_YELLOW_CARD:
-        qualifiers.append(CardQualifier(value=CardType.SECOND_YELLOW))
-    elif action_id == EVENT_QUALIFIER_RED_CARD:
-        qualifiers.append(CardQualifier(value=CardType.RED))
+def _parse_pass(
+    action_id: str, row_elm
+) -> Dict:
+    
+    if action_id in EVENT_TYPE_CROSS:
+        if action_id in EVENT_TYPE_CROSS_INCOMPLETE:
+            result = PassResult.INCOMPLETE
+        elif action_id in EVENT_TYPE_CROSS_COMPLETE:
+            result = PassResult.COMPLETE
+        qualifier = PassQualifier(value=PassType.CROSS)
+    
+    elif action_id in EVENT_TYPE_ASSIST:
+        result = PassResult.COMPLETE
+        qualifier = PassQualifier(value=PassType.ASSIST)
+    
+    elif action_id in EVENT_TYPE_ASSISIT_2ND:
+        result = PassResult.COMPLETE
+        qualifier = PassQualifier(value=PassType.ASSIST_2ND)
+    
+    receiver_coordinates = Point(
+            x=float(row_elm.attrib["pos_dest_x"]), y=float(row_elm.attrib["pos_dest_y"])
+        )
 
-    return qualifiers
+    return dict(
+        result=result,
+        receiver_coordinates=receiver_coordinates,
+        receiver_player=None,
+        receive_timestamp=None,
+        qualifiers=qualifier,
+    )
 
 
-class InStatInputs(NamedTuple):
-    lineup_data: IO[bytes]
-    events_data: IO[bytes]
+def _parse_shot(
+    action_id: str, coordinates: Point
+) -> Dict:
+    if action_id == EVENT_TYPE_SHOT_GOAL:
+        result = ShotResult.GOAL
+        
+    elif action_id == EVENT_TYPE_SHOT_OWN_GOAL:
+        result = ShotResult.OWN_GOAL
+    
+    elif action_id == EVENT_TYPE_SHOT_BLOCKED:
+        result = ShotResult.BLOCKED
+    
+    elif action_id == EVENT_TYPE_SHOT_POST:
+        result = ShotResult.POST
+    
+    elif action_id == EVENT_TYPE_SHOT_SAVED:
+        result = ShotResult.SAVED
+        
+    else:
+        result = None
+    qualifiers = None
+    return dict(coordinates=coordinates, result=result, qualifiers=qualifiers)
 
 
 class InstatDeserializer(EventDataDeserializer[InStatInputs]):
@@ -264,6 +331,28 @@ class InstatDeserializer(EventDataDeserializer[InStatInputs]):
                         qualifiers=None,
                         **generic_event_kwargs,
                         )
+                        events.append(transformer.transform_event(event))
+                    
+                    elif action_id in EVENT_TYPE_PASS:
+                        pass_event_kwargs = _parse_pass(
+                        action_id, row_elm
+                        )
+                        event = PassEvent.create(
+                        **pass_event_kwargs,
+                        **generic_event_kwargs,
+                        )
+                        events.append(transformer.transform_event(event))
+        
+            
+                    elif action_id in EVENT_TYPE_SHOT:
+                        shot_event_kwargs = _parse_shot(
+                            action_id,
+                            coordinates=generic_event_kwargs["coordinates"],
+                            )
+                        kwargs = {}
+                        kwargs.update(generic_event_kwargs)
+                        kwargs.update(shot_event_kwargs)
+                        event = ShotEvent.create(**kwargs)
                         events.append(transformer.transform_event(event))
 
                     else:
