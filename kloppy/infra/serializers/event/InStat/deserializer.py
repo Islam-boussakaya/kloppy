@@ -158,38 +158,40 @@ def _parse_card(
     action_id: str
 ) -> Dict:
 
+    qualifiers = []
     if action_id == EVENT_TYPE_RED_CARD:
         card_type = CardType.RED
-        qualifier = CardQualifier(value=CardType.RED)
+        qualifiers = qualifiers.append(CardQualifier(value=CardType.RED))
     elif action_id == EVENT_TYPE_SECOND_YELLOW_CARD:
         card_type = CardType.SECOND_YELLOW
-        qualifier = CardQualifier(value=CardType.SECOND_YELLOW)
+        qualifiers = qualifiers.append(CardQualifier(value=CardType.SECOND_YELLOW))
     elif action_id == EVENT_TYPE_FIRST_YELLOW_CARD:
         card_type = CardType.FIRST_YELLOW
-        qualifier = CardQualifier(value=CardType.FIRST_YELLOW)
+        qualifiers = qualifiers.append(CardQualifier(value=CardType.FIRST_YELLOW))
     else:
         card_type = None
 
-    return dict(result=None, qualifiers=qualifier, card_type=card_type)
+    return dict(result=None, qualifiers=qualifiers, card_type=card_type)
 
 def _parse_pass(
     action_id: str, row_elm
 ) -> Dict:
     
+    qualifiers = []
     if action_id in EVENT_TYPE_CROSS:
         if action_id in EVENT_TYPE_CROSS_INCOMPLETE:
             result = PassResult.INCOMPLETE
         elif action_id in EVENT_TYPE_CROSS_COMPLETE:
             result = PassResult.COMPLETE
-        qualifier = PassQualifier(value=PassType.CROSS)
+        qualifiers = qualifiers.append(PassQualifier(value=PassType.CROSS))
     
     elif action_id in EVENT_TYPE_ASSIST:
         result = PassResult.COMPLETE
-        qualifier = PassQualifier(value=PassType.ASSIST)
+        qualifiers = qualifiers.append(PassQualifier(value=PassType.ASSIST))
     
     elif action_id in EVENT_TYPE_ASSISIT_2ND:
         result = PassResult.COMPLETE
-        qualifier = PassQualifier(value=PassType.ASSIST_2ND)
+        qualifiers = qualifiers.append(PassQualifier(value=PassType.ASSIST_2ND))
     
     receiver_coordinates = Point(
             x=float(row_elm.attrib["pos_dest_x"]), y=float(row_elm.attrib["pos_dest_y"])
@@ -200,7 +202,7 @@ def _parse_pass(
         receiver_coordinates=receiver_coordinates,
         receiver_player=None,
         receive_timestamp=None,
-        qualifiers=qualifier,
+        qualifiers=qualifiers,
     )
 
 
@@ -224,7 +226,7 @@ def _parse_shot(
         
     else:
         result = None
-    qualifiers = None
+    qualifiers = []
     return dict(coordinates=coordinates, result=result, qualifiers=qualifiers)
 
 
