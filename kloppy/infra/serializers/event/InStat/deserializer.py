@@ -46,70 +46,8 @@ from kloppy.domain import (
 from kloppy.exceptions import DeserializationError
 from kloppy.infra.serializers.event.deserializer import EventDataDeserializer
 from kloppy.utils import performance_logging
-
+from . import instat_events
 logger = logging.getLogger(__name__)
-
-EVENT_TYPE_CROSS = ["26000","26001","26002","26010","26012"]
-EVENT_TYPE_CROSS_COMPLETE = ["26000","26002","26010","26012"]
-EVENT_TYPE_CROSS_INCOMPLETE = ["26001"]
-EVENT_TYPE_ASSIST = ["1040"]
-EVENT_TYPE_ASSISIT_2ND = ["1050","1070"]
-EVENT_TYPE_PASS = ["26000","26001","26002","26010","26012","1040","1050","1070"]
-
-EVENT_TYPE_SHOT_GOAL = "8010"
-EVENT_TYPE_SHOT_OWN_GOAL = "8020"
-EVENT_TYPE_SHOT_BLOCKED = "4050"
-EVENT_TYPE_SHOT_POST = "4030"
-EVENT_TYPE_SHOT_SAVED = "13021"
-EVENT_TYPE_SHOT = [
-    
-    EVENT_TYPE_SHOT_GOAL,
-    EVENT_TYPE_SHOT_OWN_GOAL,
-    EVENT_TYPE_SHOT_BLOCKED,
-    EVENT_TYPE_SHOT_POST,
-    EVENT_TYPE_SHOT_SAVED
-    
-]
-
-EVENT_TYPE_TAKE_ON_TACKLE = "2030"
-EVENT_TYPE_TAKE_ON_SUCC_DRIBBLING = "2051"
-EVENT_TYPE_TAKE_ON_INSUCC_DRIBBLING = "2052"
-EVENT_TYPE_TAKE_ON_LOSSBALL = "2040"
-EVENT_TYPE_TAKE_ON_CHALLENGE = "2010"
-EVENT_TYPE_TAKE_ON_AIR_CHALLENGE = "2020"
-EVENT_TYPE_TAKE_ON_COMPLETE = [
-    EVENT_TYPE_TAKE_ON_TACKLE,
-    EVENT_TYPE_TAKE_ON_SUCC_DRIBBLING,
-    EVENT_TYPE_TAKE_ON_LOSSBALL,
-    EVENT_TYPE_TAKE_ON_CHALLENGE,
-    EVENT_TYPE_TAKE_ON_AIR_CHALLENGE
-]
-EVENT_TYPE_TAKE_ON = [
-    EVENT_TYPE_TAKE_ON_TACKLE,
-    EVENT_TYPE_TAKE_ON_INSUCC_DRIBBLING,
-    EVENT_TYPE_TAKE_ON_SUCC_DRIBBLING,
-    EVENT_TYPE_TAKE_ON_LOSSBALL,
-    EVENT_TYPE_TAKE_ON_CHALLENGE,
-    EVENT_TYPE_TAKE_ON_AIR_CHALLENGE
-]
-
-EVENT_TYPE_CARD = ["3020","3030","3100"]
-EVENT_TYPE_FIRST_YELLOW_CARD = "3020"
-EVENT_TYPE_SECOND_YELLOW_CARD = "3100"
-EVENT_TYPE_RED_CARD = "3030"
-
-EVENT_TYPE_FOUL_COMMITTED = "3010"
-
-EVENT_TYPE_1ST_HALF = "18010"
-EVENT_TYPE_2ND_HALF = "18020"
-
-EVENT_TYPE_RECOVERY = "2060"
-
-EVENT_TYPE_BALL_OUT = "27000"
-EVENT_TYPE_CORNER_AWARDED ="5060"
-BALL_OUT_EVENTS = [EVENT_TYPE_BALL_OUT, EVENT_TYPE_CORNER_AWARDED]
-
-timestamp_match = 160000002
 
 class InStatInputs(NamedTuple):
     lineup_data: IO[bytes]
@@ -181,13 +119,13 @@ def _parse_card(
 ) -> Dict:
 
     qualifiers = []
-    if action_id == EVENT_TYPE_RED_CARD:
+    if action_id == instat_events.EVENT_TYPE_RED_CARD:
         card_type = CardType.RED
         qualifiers = qualifiers.append(CardQualifier(value=CardType.RED))
-    elif action_id == EVENT_TYPE_SECOND_YELLOW_CARD:
+    elif action_id == instat_events.EVENT_TYPE_SECOND_YELLOW_CARD:
         card_type = CardType.SECOND_YELLOW
         qualifiers = qualifiers.append(CardQualifier(value=CardType.SECOND_YELLOW))
-    elif action_id == EVENT_TYPE_FIRST_YELLOW_CARD:
+    elif action_id == instat_events.EVENT_TYPE_FIRST_YELLOW_CARD:
         card_type = CardType.FIRST_YELLOW
         qualifiers = qualifiers.append(CardQualifier(value=CardType.FIRST_YELLOW))
     else:
@@ -200,18 +138,18 @@ def _parse_pass(
 ) -> Dict:
     
     qualifiers = []
-    if action_id in EVENT_TYPE_CROSS:
-        if action_id in EVENT_TYPE_CROSS_INCOMPLETE:
+    if action_id in instat_events.EVENT_TYPE_CROSS:
+        if action_id in instat_events.EVENT_TYPE_CROSS_INCOMPLETE:
             result = PassResult.INCOMPLETE
-        elif action_id in EVENT_TYPE_CROSS_COMPLETE:
+        elif action_id in instat_events.EVENT_TYPE_CROSS_COMPLETE:
             result = PassResult.COMPLETE
         qualifiers = qualifiers.append(PassQualifier(value=PassType.CROSS))
     
-    elif action_id in EVENT_TYPE_ASSIST:
+    elif action_id in instat_events.EVENT_TYPE_ASSIST:
         result = PassResult.COMPLETE
         qualifiers = qualifiers.append(PassQualifier(value=PassType.ASSIST))
     
-    elif action_id in EVENT_TYPE_ASSISIT_2ND:
+    elif action_id in instat_events.EVENT_TYPE_ASSISIT_2ND:
         result = PassResult.COMPLETE
         qualifiers = qualifiers.append(PassQualifier(value=PassType.ASSIST_2ND))
     
@@ -231,19 +169,19 @@ def _parse_pass(
 def _parse_shot(
     action_id: str, coordinates: Point
 ) -> Dict:
-    if action_id == EVENT_TYPE_SHOT_GOAL:
+    if action_id == instat_events.EVENT_TYPE_SHOT_GOAL:
         result = ShotResult.GOAL
         
-    elif action_id == EVENT_TYPE_SHOT_OWN_GOAL:
+    elif action_id == instat_events.EVENT_TYPE_SHOT_OWN_GOAL:
         result = ShotResult.OWN_GOAL
     
-    elif action_id == EVENT_TYPE_SHOT_BLOCKED:
+    elif action_id == instat_events.EVENT_TYPE_SHOT_BLOCKED:
         result = ShotResult.BLOCKED
     
-    elif action_id == EVENT_TYPE_SHOT_POST:
+    elif action_id == instat_events.EVENT_TYPE_SHOT_POST:
         result = ShotResult.POST
     
-    elif action_id == EVENT_TYPE_SHOT_SAVED:
+    elif action_id == instat_events.EVENT_TYPE_SHOT_SAVED:
         result = ShotResult.SAVED
         
     else:
@@ -252,9 +190,9 @@ def _parse_shot(
     return dict(coordinates=coordinates, result=result, qualifiers=qualifiers)
 
 def _parse_take_on(action_id: str) -> Dict:
-    if action_id in EVENT_TYPE_TAKE_ON_COMPLETE:
+    if action_id in instat_events.EVENT_TYPE_TAKE_ON_COMPLETE:
         result = TakeOnResult.COMPLETE
-    elif action_id == EVENT_TYPE_TAKE_ON_INSUCC_DRIBBLING:
+    elif action_id == instat_events.EVENT_TYPE_TAKE_ON_INSUCC_DRIBBLING:
         result = TakeOnResult.INCOMPLETE
     return dict(result=result)
 
@@ -302,12 +240,12 @@ class InstatDeserializer(EventDataDeserializer[InStatInputs]):
                 event_id = row_elm.attrib["id"]
                 action_id = row_elm.attrib["action_id"]
                 period_id = int(row_elm.attrib["half"])
-                timestamp = timestamp_match + float(row_elm.attrib["second"])
+                timestamp = instat_events.timestamp_match + float(row_elm.attrib["second"])
                 for period in periods:
-                    if period.id == period_id and action_id == EVENT_TYPE_1ST_HALF:
+                    if period.id == period_id and action_id == instat_events.EVENT_TYPE_1ST_HALF:
                         period.start_timestamp = timestamp
                     
-                    elif period.id == period_id and action_id == EVENT_TYPE_2ND_HALF:
+                    elif period.id == period_id and action_id == instat_events.EVENT_TYPE_2ND_HALF:
                         period.start_timestamp = timestamp
         
                 if period_id == 1:
@@ -347,14 +285,14 @@ class InstatDeserializer(EventDataDeserializer[InStatInputs]):
                     raw_event=row_elm,
                     )
             
-                    if action_id == EVENT_TYPE_FOUL_COMMITTED:
+                    if action_id == instat_events.EVENT_TYPE_FOUL_COMMITTED:
                         event = FoulCommittedEvent.create(
                         result=None,
                         qualifiers=None,
                         **generic_event_kwargs,)
                         events.append(transformer.transform_event(event))
                 
-                    elif action_id in BALL_OUT_EVENTS:
+                    elif action_id in instat_events.BALL_OUT_EVENTS:
                         generic_event_kwargs["ball_state"] = BallState.DEAD
                         event = BallOutEvent.create(
                         result=None,
@@ -363,7 +301,7 @@ class InstatDeserializer(EventDataDeserializer[InStatInputs]):
                         )
                         events.append(transformer.transform_event(event))
                     
-                    elif action_id in EVENT_TYPE_PASS:
+                    elif action_id in instat_events.EVENT_TYPE_PASS:
                         pass_event_kwargs = _parse_pass(
                         action_id, row_elm
                         )
@@ -374,7 +312,7 @@ class InstatDeserializer(EventDataDeserializer[InStatInputs]):
                         events.append(transformer.transform_event(event))
         
             
-                    elif action_id in EVENT_TYPE_SHOT:
+                    elif action_id in instat_events.EVENT_TYPE_SHOT:
                         shot_event_kwargs = _parse_shot(
                             action_id,
                             coordinates=generic_event_kwargs["coordinates"],
@@ -385,7 +323,7 @@ class InstatDeserializer(EventDataDeserializer[InStatInputs]):
                         event = ShotEvent.create(**kwargs)
                         events.append(transformer.transform_event(event))
                     
-                    elif action_id in EVENT_TYPE_TAKE_ON:
+                    elif action_id in instat_events.EVENT_TYPE_TAKE_ON:
                         take_on_event_kwargs = _parse_take_on(action_id)
                         event = TakeOnEvent.create(
                         qualifiers=None,
@@ -403,7 +341,7 @@ class InstatDeserializer(EventDataDeserializer[InStatInputs]):
                         events.append(transformer.transform_event(event))
 
 
-                if action_id in EVENT_TYPE_CARD:
+                if action_id in instat_events.EVENT_TYPE_CARD:
                     generic_event_kwargs["ball_state"] = BallState.DEAD
                     card_event_kwargs = _parse_card(action_id)
                     event = CardEvent.create(
@@ -412,7 +350,7 @@ class InstatDeserializer(EventDataDeserializer[InStatInputs]):
                     events.append(transformer.transform_event(event))
                
         
-                elif action_id == EVENT_TYPE_RECOVERY:
+                elif action_id == instat_events.EVENT_TYPE_RECOVERY:
                     event = RecoveryEvent.create(
                     result=None,
                     qualifiers=None,
