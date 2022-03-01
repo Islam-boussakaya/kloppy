@@ -278,7 +278,7 @@ class InstatDeserializer(EventDataDeserializer[InStatInputs]):
                     ball_owning_team=possession_team,
                     ball_state=BallState.ALIVE,
                     # from Event
-                    event_id=action_id,
+                    event_id=event_id,
                     team=team,
                     player=player,
                     coordinates=Point(x=x, y=y),
