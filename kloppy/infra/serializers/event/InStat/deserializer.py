@@ -339,7 +339,8 @@ class InstatDeserializer(EventDataDeserializer[InStatInputs]):
                         event_name=_get_action_name(action_id),
                         )
                         events.append(transformer.transform_event(event))
-
+                
+                generic_event_kwargs["event_id"] = action_id
 
                 if action_id in instat_events.EVENT_TYPE_CARD:
                     generic_event_kwargs["ball_state"] = BallState.DEAD
