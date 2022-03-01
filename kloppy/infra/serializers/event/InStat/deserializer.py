@@ -1,7 +1,6 @@
 from typing import Tuple, Dict, List, NamedTuple, IO
 import logging
 from datetime import datetime
-import pytz
 from lxml import objectify
 import re
 
@@ -115,49 +114,33 @@ def _parse_score (events_root,home_team_id,away_team_id):
         pass
     return home_score,away_score
 
-def _parse_card(
-    action_id: str
-) -> Dict:
-
-    qualifiers = []
+def _parse_card(action_id: str , row_elm) -> Dict:
     if action_id == instat_events.EVENT_TYPE_RED_CARD:
         card_type = CardType.RED
-        qualifiers = qualifiers.append(CardQualifier(value=CardType.RED))
     elif action_id == instat_events.EVENT_TYPE_SECOND_YELLOW_CARD:
         card_type = CardType.SECOND_YELLOW
-        qualifiers = qualifiers.append(CardQualifier(value=CardType.SECOND_YELLOW))
     elif action_id == instat_events.EVENT_TYPE_FIRST_YELLOW_CARD:
         card_type = CardType.FIRST_YELLOW
-        qualifiers = qualifiers.append(CardQualifier(value=CardType.FIRST_YELLOW))
     else:
         card_type = None
+    qualifiers = _get_event_qualifiers(row_elm)
 
     return dict(result=None, qualifiers=qualifiers, card_type=card_type)
 
-def _parse_pass(
-    action_id: str, row_elm
-) -> Dict:
-    
-    qualifiers = []
+def _parse_pass(action_id: str, row_elm) -> Dict:
     if action_id in instat_events.EVENT_TYPE_CROSS:
         if action_id in instat_events.EVENT_TYPE_CROSS_INCOMPLETE:
             result = PassResult.INCOMPLETE
         elif action_id in instat_events.EVENT_TYPE_CROSS_COMPLETE:
-            result = PassResult.COMPLETE
-        qualifiers = qualifiers.append(PassQualifier(value=PassType.CROSS))
-    
+            result = PassResult.COMPLETE    
     elif action_id in instat_events.EVENT_TYPE_ASSIST:
-        result = PassResult.COMPLETE
-        qualifiers = qualifiers.append(PassQualifier(value=PassType.ASSIST))
-    
+        result = PassResult.COMPLETE    
     elif action_id in instat_events.EVENT_TYPE_ASSISIT_2ND:
-        result = PassResult.COMPLETE
-        qualifiers = qualifiers.append(PassQualifier(value=PassType.ASSIST_2ND))
-    
+        result = PassResult.COMPLETE    
     receiver_coordinates = Point(
             x=float(row_elm.attrib["pos_dest_x"]), y=float(row_elm.attrib["pos_dest_y"])
         )
-
+    qualifiers = _get_event_qualifiers(row_elm)
     return dict(
         result=result,
         receiver_coordinates=receiver_coordinates,
@@ -166,7 +149,43 @@ def _parse_pass(
         qualifiers=qualifiers,
     )
 
-def _get_event_bodypart(body_id : str) -> List[Qualifier]:
+def _parse_shot(
+    action_id: str, coordinates: Point, row_elm
+) -> Dict:
+    if action_id == instat_events.EVENT_TYPE_SHOT_GOAL:
+        result = ShotResult.GOAL
+    elif action_id == instat_events.EVENT_TYPE_SHOT_OWN_GOAL:
+        result = ShotResult.OWN_GOAL
+    elif action_id == instat_events.EVENT_TYPE_SHOT_BLOCKED:
+        result = ShotResult.BLOCKED
+    elif action_id == instat_events.EVENT_TYPE_SHOT_POST:
+        result = ShotResult.POST
+    elif action_id == instat_events.EVENT_TYPE_SHOT_SAVED:
+        result = ShotResult.SAVED
+    else:
+        result = None
+    qualifiers = _get_event_qualifiers(row_elm)
+    return dict(coordinates=coordinates, result=result, qualifiers=qualifiers)
+
+
+def _parse_take_on(action_id: str) -> Dict:
+    if action_id in instat_events.EVENT_TYPE_TAKE_ON_COMPLETE:
+        result = TakeOnResult.COMPLETE
+    elif action_id == instat_events.EVENT_TYPE_TAKE_ON_INSUCC_DRIBBLING:
+        result = TakeOnResult.INCOMPLETE
+    return dict(result=result)
+
+def _get_event_qualifiers(row_elm) -> List[Qualifier]:
+    qualifiers = []
+    if "body_id" in row_elm.attrib:
+        qualifiers.extend(_get_event_bodypart(int(row_elm.attrib["body_id"])))
+    if "standart_id" in row_elm.attrib:
+         qualifiers.extend(_get_event_setpiece(int(row_elm.attrib["standart_id"])))
+    qualifiers.extend(_get_event_pass(row_elm.attrib["action_id"]))
+    qualifiers.extend(_get_event_card(row_elm.attrib["action_id"]))
+    return qualifiers
+
+def _get_event_bodypart(body_id : int) -> List[Qualifier]:
     qualifiers =  []
     if body_id == instat_events.EVENT_BODYPART_RIGHT_FOOT:
         qualifiers.append(BodyPartQualifier(value=BodyPart.RIGHT_FOOT))
@@ -181,36 +200,37 @@ def _get_event_bodypart(body_id : str) -> List[Qualifier]:
     
     return qualifiers
 
-def _parse_shot(
-    action_id: str, coordinates: Point, row_elm
-) -> Dict:
-    if action_id == instat_events.EVENT_TYPE_SHOT_GOAL:
-        result = ShotResult.GOAL
-        
-    elif action_id == instat_events.EVENT_TYPE_SHOT_OWN_GOAL:
-        result = ShotResult.OWN_GOAL
-    
-    elif action_id == instat_events.EVENT_TYPE_SHOT_BLOCKED:
-        result = ShotResult.BLOCKED
-    
-    elif action_id == instat_events.EVENT_TYPE_SHOT_POST:
-        result = ShotResult.POST
-    
-    elif action_id == instat_events.EVENT_TYPE_SHOT_SAVED:
-        result = ShotResult.SAVED
-        
-    else:
-        result = None
-    qualifiers = _get_event_bodypart(int(row_elm.attrib["body_id"]))
-    return dict(coordinates=coordinates, result=result, qualifiers=qualifiers)
+def _get_event_pass(action_id : str) -> List[Qualifier]:
+    qualifiers =  []
+    if action_id in instat_events.EVENT_TYPE_CROSS:
+        qualifiers.append(PassQualifier(value=PassType.CROSS))
+    elif action_id in instat_events.EVENT_TYPE_ASSIST:
+        qualifiers.append(PassQualifier(value=PassType.ASSIST))
+    elif action_id in instat_events.EVENT_TYPE_ASSISIT_2ND:
+        qualifiers.append(PassQualifier(value=PassType.ASSIST_2ND))
+    return qualifiers
 
-def _parse_take_on(action_id: str) -> Dict:
-    if action_id in instat_events.EVENT_TYPE_TAKE_ON_COMPLETE:
-        result = TakeOnResult.COMPLETE
-    elif action_id == instat_events.EVENT_TYPE_TAKE_ON_INSUCC_DRIBBLING:
-        result = TakeOnResult.INCOMPLETE
-    return dict(result=result)
+def _get_event_card(action_id : str) -> List[Qualifier]:
+    qualifiers =  []
+    if action_id == instat_events.EVENT_TYPE_RED_CARD:
+        qualifiers.append(CardQualifier(value=CardType.RED))
+    elif action_id == instat_events.EVENT_TYPE_SECOND_YELLOW_CARD:
+        qualifiers.append(CardQualifier(value=CardType.SECOND_YELLOW))
+    elif action_id == instat_events.EVENT_TYPE_FIRST_YELLOW_CARD:
+        qualifiers.append(CardQualifier(value=CardType.FIRST_YELLOW))
+    return qualifiers
 
+def _get_event_setpiece(standart_id) -> List[Qualifier]:
+    qualifiers = []
+    if standart_id == instat_events.SET_PIECE_CORNER:
+        qualifiers.append(SetPieceQualifier(value=SetPieceType.CORNER_KICK))
+    elif standart_id == instat_events.SET_PIECE_DIRECT_FREE_KICK:
+        qualifiers.append(SetPieceQualifier(value=SetPieceType.FREE_KICK))
+    elif standart_id == instat_events.SET_PIECE_INDIRECT_FREE_KICK:
+        qualifiers.append(SetPieceQualifier(value=SetPieceType.FREE_KICK))
+    elif standart_id == instat_events.SET_PIECE_THROW_IN:
+        qualifiers.append(SetPieceQualifier(value=SetPieceType.THROW_IN))
+    return qualifiers
 class InstatDeserializer(EventDataDeserializer[InStatInputs]):
     @property
     def provider(self) -> Provider:
@@ -361,7 +381,7 @@ class InstatDeserializer(EventDataDeserializer[InStatInputs]):
                 if action_id in instat_events.EVENT_TYPE_CARD:
                     generic_event_kwargs["event_id"] = event_id
                     generic_event_kwargs["ball_state"] = BallState.DEAD
-                    card_event_kwargs = _parse_card(action_id)
+                    card_event_kwargs = _parse_card(action_id , row_elm)
                     event = CardEvent.create(
                         **card_event_kwargs,
                         **generic_event_kwargs,)
