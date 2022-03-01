@@ -35,6 +35,7 @@ from kloppy.domain import (
     CardEvent,
     CardType,
     CardQualifier,
+    Qualifier,
     SetPieceQualifier,
     SetPieceType,
     BodyPartQualifier,
@@ -165,9 +166,23 @@ def _parse_pass(
         qualifiers=qualifiers,
     )
 
+def _get_event_bodypart(body_id : str) -> List[Qualifier]:
+    qualifiers =  []
+    if body_id == instat_events.EVENT_BODYPART_RIGHT_FOOT:
+        qualifiers.append(BodyPartQualifier(value=BodyPart.RIGHT_FOOT))
+    elif body_id == instat_events.EVENT_BODYPART_LEFT_FOOT:
+        qualifiers.append(BodyPartQualifier(value=BodyPart.LEFT_FOOT))
+    elif body_id == instat_events.EVENT_BODYPART_HEADER:
+        qualifiers.append(BodyPartQualifier(value=BodyPart.HEAD))
+    elif body_id == instat_events.EVENT_BODYPART_BODY :
+        qualifiers.append(BodyPartQualifier(value=BodyPart.OTHER))
+    elif body_id == instat_events.EVENT_BODYPART_HAND :
+        qualifiers.append(BodyPartQualifier(value=BodyPart.OTHER))
+    
+    return qualifiers
 
 def _parse_shot(
-    action_id: str, coordinates: Point
+    action_id: str, coordinates: Point, row_elm
 ) -> Dict:
     if action_id == instat_events.EVENT_TYPE_SHOT_GOAL:
         result = ShotResult.GOAL
@@ -186,7 +201,7 @@ def _parse_shot(
         
     else:
         result = None
-    qualifiers = []
+    qualifiers = _get_event_bodypart(int(row_elm.attrib["body_id"]))
     return dict(coordinates=coordinates, result=result, qualifiers=qualifiers)
 
 def _parse_take_on(action_id: str) -> Dict:
@@ -315,7 +330,8 @@ class InstatDeserializer(EventDataDeserializer[InStatInputs]):
                     elif action_id in instat_events.EVENT_TYPE_SHOT:
                         shot_event_kwargs = _parse_shot(
                             action_id,
-                            coordinates=generic_event_kwargs["coordinates"],
+                            generic_event_kwargs["coordinates"],
+                            row_elm
                             )
                         kwargs = {}
                         kwargs.update(generic_event_kwargs)
@@ -340,9 +356,10 @@ class InstatDeserializer(EventDataDeserializer[InStatInputs]):
                         )
                         events.append(transformer.transform_event(event))
                 
-                generic_event_kwargs["event_id"] = action_id
+                
 
                 if action_id in instat_events.EVENT_TYPE_CARD:
+                    generic_event_kwargs["event_id"] = event_id
                     generic_event_kwargs["ball_state"] = BallState.DEAD
                     card_event_kwargs = _parse_card(action_id)
                     event = CardEvent.create(
@@ -352,6 +369,7 @@ class InstatDeserializer(EventDataDeserializer[InStatInputs]):
                
         
                 elif action_id == instat_events.EVENT_TYPE_RECOVERY:
+                    generic_event_kwargs["event_id"] = event_id
                     event = RecoveryEvent.create(
                     result=None,
                     qualifiers=None,
